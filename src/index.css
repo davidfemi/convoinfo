@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* React Flow Styles */
+.react-flow__attribution {
+  display: none;
+}
+
+.react-flow__panel {
+  z-index: 10;
+}
+
+/* Custom node animations */
+.conversation-node {
+  transition: all 0.2s ease;
+}
+
+.conversation-node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Tines-inspired styling */
+.tines-card {
+  @apply bg-white border border-tines-border rounded-lg shadow-sm;
+}
+
+.tines-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+} 
