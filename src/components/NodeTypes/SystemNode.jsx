@@ -1,95 +1,95 @@
 import React from 'react';
-import { Cog, Globe, Tag, Play } from 'lucide-react';
 import BaseNode from './BaseNode';
+import { Settings, Globe, Tag, MessageCircle } from 'lucide-react';
 
 const SystemNode = ({ data }) => {
-  const getSystemIcon = () => {
+  const getSystemEventInfo = () => {
     switch (data.partType) {
-      case 'language_detection':
-        return Globe;
-      case 'conversation_attribute_updated':
-        return Tag;
       case 'customer_initiated':
-        return Play;
+        return {
+          type: 'Conversation Started',
+          description: 'Customer initiated conversation',
+          icon: '💬',
+          color: 'teal',
+          lucideIcon: MessageCircle,
+        };
+      case 'language_detection':
+        return {
+          type: 'Language Detection',
+          description: 'Automated language identification',
+          icon: '🌐',
+          color: 'teal',
+          lucideIcon: Globe,
+        };
+      case 'conversation_attribute_updated':
+        return {
+          type: 'Attribute Update',
+          description: 'Conversation properties modified',
+          icon: '🏷️',
+          color: 'orange',
+          lucideIcon: Tag,
+        };
       default:
-        return Cog;
+        return {
+          type: 'System Event',
+          description: 'Automated system action',
+          icon: '⚙️',
+          color: 'teal',
+          lucideIcon: Settings,
+        };
     }
   };
 
-  const getSystemDetails = () => {
-    const details = data.details || {};
-    
-    switch (data.partType) {
-      case 'language_detection':
-        return (
-          <div className="bg-white bg-opacity-20 rounded p-2 text-xs">
-            <div className="font-medium text-white">Language Detected</div>
-            <div className="text-white text-opacity-90">
-              {details.detected_language?.toUpperCase() || 'Unknown'}
-            </div>
-            {details.confidence && (
-              <div className="text-white text-opacity-75 mt-1">
-                Confidence: {(details.confidence * 100).toFixed(1)}%
-              </div>
-            )}
-          </div>
-        );
-      
-      case 'conversation_attribute_updated':
-        return (
-          <div className="bg-white bg-opacity-20 rounded p-2 text-xs">
-            <div className="font-medium text-white">Attribute Updated</div>
-            <div className="text-white text-opacity-90">
-              {details.attribute}: {details.new_value}
-            </div>
-            {details.updated_by && (
-              <div className="text-white text-opacity-75 mt-1">
-                By: {details.updated_by}
-              </div>
-            )}
-          </div>
-        );
-
-      case 'customer_initiated':
-        return (
-          <div className="bg-white bg-opacity-20 rounded p-2 text-xs">
-            <div className="font-medium text-white">Conversation Started</div>
-            <div className="text-white text-opacity-90">
-              Source: {details.source || 'messenger'}
-            </div>
-          </div>
-        );
-      
-      default:
-        return (
-          <div className="bg-white bg-opacity-20 rounded p-2 text-xs">
-            <div className="font-medium text-white">System Event</div>
-            <div className="text-white text-opacity-90">Automated action</div>
-          </div>
-        );
-    }
-  };
-
-  const getSystemColor = () => {
-    switch (data.partType) {
-      case 'customer_initiated':
-        return 'teal';
-      case 'language_detection':
-        return 'blue';
-      case 'conversation_attribute_updated':
-        return 'orange';
-      default:
-        return 'gray';
-    }
-  };
+  const eventInfo = getSystemEventInfo();
 
   return (
-    <BaseNode 
-      data={data} 
-      icon={getSystemIcon()} 
-      color={getSystemColor()}
+    <BaseNode
+      data={data}
+      title={data.title}
+      colorScheme={eventInfo.color}
+      icon={eventInfo.lucideIcon}
+      isDimmed={data.isDimmed}
     >
-      {getSystemDetails()}
+      <div className={`p-3 rounded-lg transition-all duration-300 ${
+        data.isDimmed 
+          ? 'bg-gray-50 border border-gray-200' 
+          : eventInfo.color === 'teal' 
+            ? 'bg-teal-600 text-white'
+            : 'bg-orange-600 text-white'
+      }`}>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-lg">{eventInfo.icon}</span>
+          <span className={`font-medium text-sm ${
+            data.isDimmed ? 'text-gray-600' : 'text-white'
+          }`}>
+            {eventInfo.type}
+          </span>
+        </div>
+        <p className={`text-xs ${
+          data.isDimmed 
+            ? 'text-gray-500' 
+            : eventInfo.color === 'teal' 
+              ? 'text-teal-100'
+              : 'text-orange-100'
+        }`}>
+          {eventInfo.description}
+        </p>
+        {data.details && Object.keys(data.details).length > 0 && (
+          <div className={`mt-2 text-xs ${
+            data.isDimmed 
+              ? 'text-gray-600' 
+              : eventInfo.color === 'teal' 
+                ? 'text-teal-100'
+                : 'text-orange-100'
+          }`}>
+            {Object.entries(data.details).slice(0, 2).map(([key, value]) => (
+              <div key={key} className="truncate">
+                <span className="font-medium">{key}:</span> {String(value).substring(0, 30)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </BaseNode>
   );
 };

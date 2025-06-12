@@ -1,38 +1,112 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
-import { Clock, User } from 'lucide-react';
+import { Clock, User, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 
 const BaseNode = ({ 
   data, 
+  title,
   children, 
   className = '', 
   showHandles = true,
-  icon: Icon,
-  color = 'blue'
+  icon: Icon = MapPin,
+  colorScheme = 'gray',
+  isDimmed = false
 }) => {
-  const colorClasses = {
-    blue: 'border-blue-600 bg-blue-600',
-    green: 'border-green-600 bg-green-600',
-    orange: 'border-orange-600 bg-orange-600',
-    purple: 'border-purple-600 bg-purple-600',
-    gray: 'border-gray-600 bg-gray-600',
-    teal: 'border-teal-600 bg-teal-600'
+  const handleClick = () => {
+    if (data.onNodeClick) {
+      data.onNodeClick(data);
+    }
   };
 
-  const iconColorClasses = {
-    blue: 'text-white',
-    green: 'text-white',
-    orange: 'text-white',
-    purple: 'text-white',
-    gray: 'text-white',
-    teal: 'text-white'
+  const getColorClasses = () => {
+    if (isDimmed) {
+      return {
+        border: 'border-gray-300',
+        header: 'bg-gray-100',
+        iconBg: 'bg-gray-200',
+        iconColor: 'text-gray-500',
+        titleColor: 'text-gray-600',
+        timestampColor: 'text-gray-400',
+        shadowColor: 'shadow-sm',
+      };
+    }
+
+    const colorMap = {
+      purple: {
+        border: 'border-purple-300',
+        header: 'bg-purple-100',
+        iconBg: 'bg-purple-200',
+        iconColor: 'text-purple-700',
+        titleColor: 'text-purple-900',
+        timestampColor: 'text-purple-600',
+        shadowColor: 'shadow-purple-200',
+      },
+      blue: {
+        border: 'border-blue-300',
+        header: 'bg-blue-100',
+        iconBg: 'bg-blue-200',
+        iconColor: 'text-blue-700',
+        titleColor: 'text-blue-900',
+        timestampColor: 'text-blue-600',
+        shadowColor: 'shadow-blue-200',
+      },
+      teal: {
+        border: 'border-teal-300',
+        header: 'bg-teal-100',
+        iconBg: 'bg-teal-200',
+        iconColor: 'text-teal-700',
+        titleColor: 'text-teal-900',
+        timestampColor: 'text-teal-600',
+        shadowColor: 'shadow-teal-200',
+      },
+      orange: {
+        border: 'border-orange-300',
+        header: 'bg-orange-100',
+        iconBg: 'bg-orange-200',
+        iconColor: 'text-orange-700',
+        titleColor: 'text-orange-900',
+        timestampColor: 'text-orange-600',
+        shadowColor: 'shadow-orange-200',
+      },
+      green: {
+        border: 'border-green-300',
+        header: 'bg-green-100',
+        iconBg: 'bg-green-200',
+        iconColor: 'text-green-700',
+        titleColor: 'text-green-900',
+        timestampColor: 'text-green-600',
+        shadowColor: 'shadow-green-200',
+      },
+      red: {
+        border: 'border-red-300',
+        header: 'bg-red-100',
+        iconBg: 'bg-red-200',
+        iconColor: 'text-red-700',
+        titleColor: 'text-red-900',
+        timestampColor: 'text-red-600',
+        shadowColor: 'shadow-red-200',
+      },
+    };
+
+    return colorMap[colorScheme] || colorMap.gray;
   };
+
+  const colors = getColorClasses();
 
   return (
     <div 
-      className={`conversation-node p-4 min-w-[280px] max-w-[320px] rounded-lg shadow-sm ${colorClasses[color]} ${className}`}
-      onClick={() => data.onNodeClick?.(data)}
+      className={`
+        bg-white rounded-lg border-2 shadow-lg cursor-pointer 
+        transition-all duration-300 ease-in-out hover:shadow-xl
+        ${colors.border} ${colors.shadowColor}
+        ${isDimmed ? 'opacity-60 scale-95 hover:opacity-80' : 'hover:scale-105'}
+      `}
+      onClick={handleClick}
+      style={{
+        minWidth: '280px',
+        maxWidth: '320px',
+      }}
     >
       {showHandles && (
         <>
@@ -49,40 +123,49 @@ const BaseNode = ({
         </>
       )}
       
-      <div className="flex items-start gap-3">
-        {Icon && (
-          <div className="p-2 rounded-lg bg-white bg-opacity-20 text-white">
-            <Icon size={20} />
+      <div className={`${colors.header} p-3 rounded-t-lg border-b border-gray-200`}>
+        <div className="flex items-center gap-3 mb-2">
+          <div className={`${colors.iconBg} p-2 rounded-lg`}>
+            <Icon className={`w-4 h-4 ${colors.iconColor}`} />
           </div>
-        )}
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-white text-sm truncate">
-              {data.title}
+          <div className="flex-1 min-w-0">
+            <h3 className={`font-semibold text-sm ${colors.titleColor} truncate`}>
+              {title || data.title}
             </h3>
-            <span className={`tines-badge text-xs bg-white bg-opacity-20 text-white border border-white border-opacity-30`}>
-              {data.partType}
-            </span>
-          </div>
-          
-          <p className="text-white text-opacity-90 text-sm mb-3 line-clamp-2">
-            {data.content}
-          </p>
-          
-          {children}
-          
-          <div className="flex items-center justify-between text-xs text-white text-opacity-75 mt-3 pt-2 border-t border-white border-opacity-30">
-            <div className="flex items-center gap-1">
-              <Clock size={12} />
-              <span>{format(new Date(data.createdAt), 'MMM d, HH:mm')}</span>
+            <div className="flex items-center gap-1 mt-1">
+              <Clock className={`w-3 h-3 ${colors.timestampColor}`} />
+              <span className={`text-xs ${colors.timestampColor}`}>
+                {format(new Date(data.createdAt), 'HH:mm:ss')}
+              </span>
+              {data.position && (
+                <span className={`text-xs ${colors.timestampColor} ml-2`}>
+                  #{data.position}
+                </span>
+              )}
             </div>
-            {data.author && (
-              <div className="flex items-center gap-1">
-                <User size={12} />
-                <span className="truncate max-w-[80px]">{data.author}</span>
-              </div>
-            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-0">
+        {children}
+      </div>
+
+      <div className="px-3 py-2 bg-gray-50 rounded-b-lg border-t border-gray-100">
+        <div className="flex items-center justify-between text-xs">
+          <span className={`${colors.timestampColor} font-medium`}>
+            {data.partType.replace('_', ' ')}
+          </span>
+          <div className={`flex items-center gap-1 ${colors.timestampColor}`}>
+            <div className={`w-2 h-2 rounded-full ${
+              isDimmed ? 'bg-gray-400' : 
+              colorScheme === 'purple' ? 'bg-purple-500' :
+              colorScheme === 'blue' ? 'bg-blue-500' :
+              colorScheme === 'teal' ? 'bg-teal-500' :
+              colorScheme === 'orange' ? 'bg-orange-500' :
+              colorScheme === 'green' ? 'bg-green-500' : 'bg-gray-500'
+            }`}></div>
+            <span className="text-xs">{data.category}</span>
           </div>
         </div>
       </div>

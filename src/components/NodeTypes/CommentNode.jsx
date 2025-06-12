@@ -1,46 +1,57 @@
 import React from 'react';
-import { MessageCircle, User, Headphones } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import BaseNode from './BaseNode';
 
 const CommentNode = ({ data }) => {
-  const isCustomer = data.details?.user_type === 'customer' || 
-                    data.channel === 'messenger' && data.author !== 'Operator';
-
-  const getCommentIcon = () => {
-    return isCustomer ? User : Headphones;
-  };
-
-  // Always use blue for all comments to ensure distinct colors:
-  // Assignments = Purple, Comments = Blue, Conversation Started = Green
-  const getCommentColor = () => {
-    return 'blue';
-  };
-
   const getCommentDetails = () => {
-    return (
-      <div className="bg-white bg-opacity-20 rounded p-2 text-xs">
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${
-            isCustomer ? 'bg-white' : 'bg-white'
-          }`}></div>
-          <span className="font-medium text-white">
-            {isCustomer ? 'Customer' : 'Agent'} Message
-          </span>
-        </div>
-        <div className="text-white text-opacity-90 mt-1">
-          Channel: {data.channel}
-        </div>
-      </div>
-    );
+    const details = data.details || {};
+    
+    return {
+      author: details.author?.label || data.author || 'Unknown',
+      isCustomer: details.author?.type === 'customer' || data.author?.includes('customer'),
+      content: details.content || data.content || 'No message content',
+      timestamp: data.createdAt,
+    };
   };
+
+  const commentInfo = getCommentDetails();
 
   return (
-    <BaseNode 
-      data={data} 
-      icon={getCommentIcon()} 
-      color={getCommentColor()}
+    <BaseNode
+      data={data}
+      title={data.title}
+      colorScheme="blue"
+      icon={MessageSquare}
+      isDimmed={data.isDimmed}
     >
-      {getCommentDetails()}
+      <div className={`p-3 rounded-lg transition-all duration-300 ${
+        data.isDimmed 
+          ? 'bg-gray-50 border border-gray-200' 
+          : 'bg-blue-600 text-white'
+      }`}>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-lg">
+            {commentInfo.isCustomer ? '👤' : '🎧'}
+          </span>
+          <span className={`font-medium text-sm ${
+            data.isDimmed ? 'text-gray-600' : 'text-white'
+          }`}>
+            {commentInfo.isCustomer ? 'Customer' : 'Agent'}
+          </span>
+        </div>
+        <div className={`text-xs mb-2 ${
+          data.isDimmed ? 'text-gray-600' : 'text-blue-100'
+        }`}>
+          From: {commentInfo.author}
+        </div>
+        {commentInfo.content && (
+          <p className={`text-xs line-clamp-2 ${
+            data.isDimmed ? 'text-gray-500' : 'text-blue-100'
+          }`}>
+            {commentInfo.content}
+          </p>
+        )}
+      </div>
     </BaseNode>
   );
 };

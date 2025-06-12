@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { MessageSquare, Upload, Download, Settings } from 'lucide-react';
 import FlowCanvas from './components/FlowCanvas';
-import { sampleConversationData } from './data/sampleConversation';
+import { sampleConversation } from './data/sampleConversation';
 
 function App() {
-  const [conversationData, setConversationData] = useState(sampleConversationData);
+  const [conversationData, setConversationData] = useState(sampleConversation);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleFileUpload = (event) => {
