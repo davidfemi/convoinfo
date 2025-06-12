@@ -14,35 +14,22 @@ import AssignmentNode from './NodeTypes/AssignmentNode';
 import CommentNode from './NodeTypes/CommentNode';
 import SystemNode from './NodeTypes/SystemNode';
 import WorkflowNode from './NodeTypes/WorkflowNode';
-import BasicNode from './NodeTypes/BasicNode';
 import DetailsSidebar from './Sidebar/DetailsSidebar';
 import LeftSidebar from './Sidebar/LeftSidebar';
-import Navbar from './Navbar/Navbar';
-import ConversationTable from './Table/ConversationTable';
+import ConversationTable from './TableView/ConversationTable';
+import { LayoutGrid, GitBranch, Eye } from 'lucide-react';
+
+const nodeTypes = {
+  assignment: AssignmentNode,
+  comment: CommentNode,
+  system: SystemNode,
+  workflow: WorkflowNode,
+};
 
 const FlowCanvas = ({ conversationData }) => {
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [isBasicView, setIsBasicView] = useState(false);
-
-  // Node types for detailed view
-  const detailedNodeTypes = {
-    assignment: AssignmentNode,
-    comment: CommentNode,
-    system: SystemNode,
-    workflow: WorkflowNode,
-  };
-
-  // Node types for basic view
-  const basicNodeTypes = {
-    assignment: BasicNode,
-    comment: BasicNode,
-    system: BasicNode,
-    workflow: BasicNode,
-  };
-
-  // Choose node types based on view mode
-  const nodeTypes = isBasicView ? basicNodeTypes : detailedNodeTypes;
+  const [viewMode, setViewMode] = useState('flow'); // 'flow' or 'table'
 
   // Determine which category a node belongs to
   const getNodeCategory = (partType) => {
@@ -57,11 +44,41 @@ const FlowCanvas = ({ conversationData }) => {
     }
   };
 
-  // Create initial nodes and edges (only depends on conversationData, not selectedCategory)
+  // Create positions based on view mode
+  const createNodePositions = (parts, workflows) => {
+    const positions = [];
+    
+    // Flow layout: simple positioning logic
+    parts.forEach((part, index) => {
+      positions.push({
+        x: 100 + (index % 2) * 450,
+        y: 50 + Math.floor(index / 2) * 400,
+      });
+    });
+    
+    // Position workflows to the right in flow mode
+    if (workflows) {
+      workflows.forEach((workflow, index) => {
+        positions.push({
+          x: 800,
+          y: 100 + index * 400,
+        });
+      });
+    }
+    
+    return positions;
+  };
+
+  // Create initial nodes and edges
   const { initialNodes, initialEdges } = useMemo(() => {
     if (!conversationData?.parts) {
       return { initialNodes: [], initialEdges: [] };
     }
+
+    const positions = createNodePositions(
+      conversationData.parts, 
+      conversationData.workflows
+    );
 
     const nodes = conversationData.parts.map((part, index) => {
       // Determine node type based on part type
@@ -97,22 +114,11 @@ const FlowCanvas = ({ conversationData }) => {
       };
 
       const nodeCategory = getNodeCategory(part.partType);
-      
-      // Calculate position based on view mode
-      const nodePosition = isBasicView 
-        ? {
-            x: 50 + (index % 4) * 200, // 4 columns for basic view
-            y: 50 + Math.floor(index / 4) * 150 // Tighter spacing
-          }
-        : {
-            x: 100 + (index % 2) * 450, // Current detailed view positioning
-            y: 50 + Math.floor(index / 2) * 400
-          };
 
       return {
         id: part.id,
         type: nodeType,
-        position: nodePosition,
+        position: positions[index],
         data: {
           ...part,
           title: getTitle(),
@@ -121,42 +127,42 @@ const FlowCanvas = ({ conversationData }) => {
           category: nodeCategory,
           isDimmed: false,
         },
-        draggable: true,
+        draggable: viewMode === 'flow', // Only allow dragging in flow mode
       };
     });
 
     // Initialize edges array
     const edges = [];
 
-    // Create sequential edges for conversation parts with enhanced styling
-    conversationData.parts.slice(0, -1).forEach((part, index) => {
-      edges.push({
-        id: `e${part.id}-${conversationData.parts[index + 1].id}`,
-        source: part.id,
-        target: conversationData.parts[index + 1].id,
-        type: 'smoothstep',
-        style: { 
-          stroke: isBasicView ? '#cbd5e1' : '#94a3b8', 
-          strokeWidth: isBasicView ? 1 : 2,
-          opacity: 1,
-          transition: 'all 0.3s ease-in-out'
-        },
-        animated: false,
+    // Create sequential edges for conversation parts (only in flow mode)
+    if (viewMode === 'flow') {
+      conversationData.parts.slice(0, -1).forEach((part, index) => {
+        edges.push({
+          id: `e${part.id}-${conversationData.parts[index + 1].id}`,
+          source: part.id,
+          target: conversationData.parts[index + 1].id,
+          type: 'smoothstep',
+          style: { 
+            stroke: '#94a3b8', 
+            strokeWidth: 2,
+            opacity: 1,
+            transition: 'all 0.3s ease-in-out'
+          },
+          animated: false,
+        });
       });
-    });
+    }
 
-    // Create workflow nodes if they exist (only in detailed view)
-    if (conversationData.workflows && !isBasicView) {
+    // Create workflow nodes if they exist
+    if (conversationData.workflows) {
       conversationData.workflows.forEach((workflow, index) => {
         const workflowNodeId = `workflow_${workflow.id}`;
+        const workflowPositionIndex = conversationData.parts.length + index;
         
         nodes.push({
           id: workflowNodeId,
-          type: 'system',
-          position: {
-            x: 800, // Move workflows further right to avoid conflicts
-            y: 100 + index * 400 // Larger spacing for workflows
-          },
+          type: 'workflow',
+          position: positions[workflowPositionIndex],
           data: {
             id: workflowNodeId,
             title: `Workflow: ${workflow.name}`,
@@ -168,10 +174,11 @@ const FlowCanvas = ({ conversationData }) => {
             category: 'workflows',
             isDimmed: false,
           },
+          draggable: viewMode === 'flow', // Only allow dragging in flow mode
         });
 
-        // Create dotted line connections from workflow to related parts
-        if (workflow.related_parts) {
+        // Create dotted line connections from workflow to related parts (only in flow mode)
+        if (viewMode === 'flow' && workflow.related_parts) {
           workflow.related_parts.forEach(partId => {
             edges.push({
               id: `workflow_${workflow.id}_to_${partId}`,
@@ -193,29 +200,38 @@ const FlowCanvas = ({ conversationData }) => {
     }
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [conversationData, isBasicView]); // Depend on both conversationData and isBasicView
+  }, [conversationData, viewMode]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   // Update nodes when view mode or category selection changes
   useEffect(() => {
-    setNodes(initialNodes);
-    setEdges(initialEdges);
-  }, [initialNodes, initialEdges, setNodes, setEdges]);
+    if (!conversationData?.parts || viewMode !== 'flow') return;
 
-  // Update node and edge styling when category selection changes
-  useEffect(() => {
-    if (!conversationData?.parts) return;
+    // Recalculate positions when view mode changes
+    const positions = createNodePositions(
+      conversationData.parts, 
+      conversationData.workflows
+    );
 
-    // Update nodes with dimming based on selected category
+    // Update nodes with new positions and dimming based on selected category
     setNodes((currentNodes) => 
-      currentNodes.map((node) => {
+      currentNodes.map((node, index) => {
         const nodeCategory = getNodeCategory(node.data.partType);
         const isDimmed = selectedCategory !== 'all' && selectedCategory !== nodeCategory;
         
+        // Determine the correct position index
+        let positionIndex = index;
+        if (node.data.partType === 'workflow') {
+          // For workflow nodes, find their index in the workflows array
+          const workflowIndex = conversationData.workflows?.findIndex(w => `workflow_${w.id}` === node.id) || 0;
+          positionIndex = conversationData.parts.length + workflowIndex;
+        }
+        
         return {
           ...node,
+          position: positions[positionIndex] || node.position,
           data: {
             ...node.data,
             isDimmed: isDimmed,
@@ -225,7 +241,8 @@ const FlowCanvas = ({ conversationData }) => {
             transition: 'all 0.3s ease-in-out',
             filter: isDimmed ? 'grayscale(0.5)' : 'none',
           },
-          className: isDimmed ? 'dimmed-node' : 'focused-node'
+          className: isDimmed ? 'dimmed-node' : 'focused-node',
+          draggable: true, // Always draggable in flow mode
         };
       })
     );
@@ -264,15 +281,15 @@ const FlowCanvas = ({ conversationData }) => {
           ...edge,
           style: {
             ...edge.style,
-            stroke: isDimmed ? '#e2e8f0' : (isBasicView ? '#cbd5e1' : '#94a3b8'),
-            strokeWidth: isDimmed ? 1 : (isBasicView ? 1 : 2),
+            stroke: isDimmed ? '#e2e8f0' : '#94a3b8',
+            strokeWidth: isDimmed ? 1 : 2,
             opacity: isDimmed ? 0.3 : 1,
             transition: 'all 0.3s ease-in-out'
           }
         };
       })
     );
-  }, [selectedCategory, conversationData, setNodes, setEdges, isBasicView]);
+  }, [selectedCategory, conversationData, viewMode, setNodes, setEdges]);
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge(params, eds)),
@@ -292,9 +309,14 @@ const FlowCanvas = ({ conversationData }) => {
     setSelectedNode(null); // Clear selected node when changing category
   }, []);
 
-  const handleToggleView = useCallback((basicView) => {
-    setIsBasicView(basicView);
+  const handleViewModeChange = useCallback((mode) => {
+    setViewMode(mode);
     setSelectedNode(null); // Clear selected node when changing view
+  }, []);
+
+  // Handle table row click
+  const handleTableRowClick = useCallback((event) => {
+    setSelectedNode(event);
   }, []);
 
   // Get category stats for display
@@ -324,88 +346,114 @@ const FlowCanvas = ({ conversationData }) => {
       />
       
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col ml-80">
-        {/* Navbar */}
-        <Navbar 
-          isBasicView={isBasicView}
-          onToggleView={handleToggleView}
-          conversationData={conversationData}
-        />
-        
-        {/* Content Area - Table or Flow */}
-        <div className={`flex-1 transition-all duration-300 ${selectedNode ? 'mr-96' : 'mr-0'} relative mt-16`}>
-          {/* Category Filter Status Bar */}
-          {selectedCategory !== 'all' && (
-            <div className="absolute top-4 left-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3">
-              <div className="flex items-center gap-3">
+      <div className={`flex-1 transition-all duration-300 ml-80 ${selectedNode ? 'mr-96' : 'mr-0'} relative`}>
+        {/* Navbar with View Toggle */}
+        <div className="absolute top-4 left-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3">
+          <div className="flex items-center gap-4">
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-900">View:</span>
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => handleViewModeChange('flow')}
+                  className={`flex items-center gap-2 px-3 py-1 rounded text-sm transition-colors ${
+                    viewMode === 'flow' 
+                      ? 'bg-white text-blue-600 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <GitBranch className="w-3 h-3" />
+                  Flow
+                </button>
+                <button
+                  onClick={() => handleViewModeChange('table')}
+                  className={`flex items-center gap-2 px-3 py-1 rounded text-sm transition-colors ${
+                    viewMode === 'table' 
+                      ? 'bg-white text-blue-600 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <LayoutGrid className="w-3 h-3" />
+                  Table
+                </button>
+              </div>
+            </div>
+
+            {/* Category Filter Status */}
+            {selectedCategory !== 'all' && (
+              <>
+                <div className="w-px h-6 bg-gray-300"></div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                   <span className="text-sm font-medium text-gray-900">
                     Filtering: {selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)}
                   </span>
+                  <div className="text-xs text-gray-500">
+                    {selectedCategory === 'assignments' && `${stats.assignments} of ${stats.total} events`}
+                    {selectedCategory === 'comments' && `${stats.comments} of ${stats.total} events`}
+                    {selectedCategory === 'system' && `${stats.system} of ${stats.total} events`}
+                    {selectedCategory === 'workflows' && `${stats.workflows} of ${stats.total} events`}
+                  </div>
+                  <button
+                    onClick={() => handleCategoryChange('all')}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Clear
+                  </button>
                 </div>
-                <div className="text-xs text-gray-500">
-                  {selectedCategory === 'assignments' && `${stats.assignments} of ${stats.total} events`}
-                  {selectedCategory === 'comments' && `${stats.comments} of ${stats.total} events`}
-                  {selectedCategory === 'system' && `${stats.system} of ${stats.total} events`}
-                  {selectedCategory === 'workflows' && `${stats.workflows} of ${stats.total} events`}
-                </div>
-                <button
-                  onClick={() => handleCategoryChange('all')}
-                  className="text-xs text-blue-600 hover:text-blue-800 underline"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-          )}
+              </>
+            )}
+          </div>
+        </div>
 
-          {/* Conditional rendering based on view mode */}
-          {isBasicView ? (
+        {/* Conditional Content Based on View Mode */}
+        {viewMode === 'table' ? (
+          <div className="p-6 pt-20 h-full overflow-auto">
             <ConversationTable
               conversationData={conversationData}
               selectedCategory={selectedCategory}
-              onRowClick={setSelectedNode}
+              onRowClick={handleTableRowClick}
               selectedNode={selectedNode}
             />
-          ) : (
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onNodeClick={onNodeClick}
-              onPaneClick={onPaneClick}
-              nodeTypes={nodeTypes}
-              className="bg-tines-gray"
-              defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
-              minZoom={0.1}
-              maxZoom={2}
-            >
-              <Controls className="!bottom-4 !left-4" />
-              <MiniMap
-                className="!bottom-4 !right-4"
-                nodeStrokeColor="#374151"
-                nodeColor={(node) => {
-                  if (node.className === 'dimmed-node') return '#e5e7eb';
-                  if (node.data.category === 'assignments') return '#a855f7';
-                  if (node.data.category === 'comments') return '#3b82f6';
-                  if (node.data.category === 'system') return '#14b8a6';
-                  if (node.data.category === 'workflows') return '#9333ea';
-                  return '#f3f4f6';
-                }}
-                nodeBorderRadius={8}
-              />
-              <Background 
-                variant="dots" 
-                gap={20} 
-                size={1} 
-                color="#e2e8f0"
-              />
-            </ReactFlow>
-          )}
-        </div>
+          </div>
+        ) : (
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={onNodeClick}
+            onPaneClick={onPaneClick}
+            nodeTypes={nodeTypes}
+            className="bg-tines-gray"
+            defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+            minZoom={0.1}
+            maxZoom={2}
+          >
+            <Controls className="!bottom-4 !left-4" />
+            <MiniMap
+              className="!bottom-4 !right-4"
+              nodeStrokeColor="#374151"
+              nodeColor={(node) => {
+                if (node.className === 'dimmed-node') return '#e5e7eb';
+                if (node.data.category === 'assignments') return '#a855f7';
+                if (node.data.category === 'comments') return '#3b82f6';
+                if (node.data.category === 'system') return '#14b8a6';
+                if (node.data.category === 'workflows') return '#9333ea';
+                return '#f3f4f6';
+              }}
+              nodeBorderRadius={8}
+            />
+            <Background 
+              variant="dots" 
+              gap={20} 
+              size={1} 
+              color="#e2e8f0"
+            />
+          </ReactFlow>
+        )}
       </div>
 
       {/* Right Sidebar - Shows when node is selected */}
