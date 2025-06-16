@@ -431,6 +431,10 @@ const FlowCanvas = ({ conversationData }) => {
             defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
             minZoom={0.1}
             maxZoom={2}
+            panOnDrag={[1, 2]}
+            panOnScroll={true}
+            zoomOnScroll={true}
+            zoomOnPinch={true}
           >
             <Controls className="!bottom-4 !left-4" />
             <MiniMap
